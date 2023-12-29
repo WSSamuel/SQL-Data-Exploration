@@ -23,7 +23,7 @@ SELECT COLUMN_NAME
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME = 'DiseaseBurden';
 
--- RENAME COLUMNS
+-- RENAMING COLUMNS
 
 -- Rename columns for CancerPopulation
 EXEC sp_rename 'CancerDeaths..CancerPopulation.Entity'
@@ -487,7 +487,6 @@ WHERE code IS NULL;
 -- DATA EXPLORATION
 
 -- Which country has the highest average cancer deaths per year?
-
 SELECT TOP 5 code
 	,CAST(SUM(liver_cancer_deaths + kidney_cancer_deaths + lip_oral_cavity_cancer_deaths + lung_cancer_deaths + larynx_cancer_deaths + gallbladder_biliary_tract_cancer_deaths + malignant_skin_melanoma_deaths + leukemia_deaths + hodgkin_lymphoma_deaths + multiple_myeloma_deaths + other_neoplasms_deaths + breast_cancer_deaths + prostate_cancer_deaths + thyroid_cancer_deaths + stomach_cancer_deaths + bladder_cancer_deaths + uterine_cancer_deaths + ovarian_cancer_deaths + cervical_cancer_deaths + brain_cns_cancer_deaths + non_hodgkin_lymphoma_deaths + pancreatic_cancer_deaths + esophageal_cancer_deaths + testicular_cancer_deaths + nasopharynx_cancer_deaths + other_pharynx_cancer_deaths + colon_rectum_cancer_deaths + non_melanoma_skin_cancer_deaths + mesothelioma_deaths) / 29 AS INT) AS average_deaths
 FROM CancerDeaths..TotalDeaths
@@ -497,7 +496,6 @@ GROUP BY code
 ORDER BY average_deaths DESC;
 
 -- Overall trend of cancer deaths over the years
-
 SELECT year
 	,SUM(liver_cancer_deaths) AS liver_cancer_deaths
 	,SUM(kidney_cancer_deaths) AS kidney_cancer_deaths
@@ -533,7 +531,6 @@ GROUP BY year
 ORDER BY year;
 
 -- Which cancer had the highest deaths in 2019 in the UK?
-
 WITH ranked_country
 AS (
 	SELECT country
@@ -595,7 +592,7 @@ WHERE rn = 1
 	AND code = 'GBR'
 	AND year = 2019;
 
---Which cancer has the highest mortality per year in the world?
+-- Which cancer has the highest mortality per year in the world?
 WITH ranked_world
 AS (
 	SELECT year
@@ -648,7 +645,6 @@ ORDER BY year;
 
 -- To perform more indepth analysis, I need to merge this dataset with the CancerPopulation and Population Datasets
 -- To make it easier, I will just make a new table with all the data
-
 DROP TABLE IF exists CancerDeaths.dbo.CancerRate
 CREATE TABLE CancerDeaths.dbo.CancerRate (
 	country VARCHAR(255)
@@ -836,7 +832,6 @@ ORDER BY country
 	,year
 
 -- What is the mortality rate of each cancer in 2019?
-
 WITH ranked_country AS (
 		SELECT country
 			,code
@@ -901,7 +896,6 @@ WHERE rn = 1
 ORDER BY mortality_rate DESC;
 
 -- Has there been any significant change in mortality rates for breast cancers over time in the UK?
-
 WITH ranked_country
 AS (
 	SELECT country
@@ -967,7 +961,6 @@ ORDER BY year
 	,mortality_rate DESC;
 
 -- Which cancer had the highest incidence in 2019 in the UK?
-
 WITH incidence_rate
 AS (
 	SELECT country
@@ -1027,7 +1020,6 @@ ORDER BY incidence DESC;
 
 -- What is the rate of survival for breast cancer in the UK?
 -- This isn't very accurate because the incidence was age-standardised and in percent
-
 WITH incidence_rate
 AS (
 	SELECT country
@@ -1113,7 +1105,6 @@ FROM incidence_rate
 ORDER BY year
 
 -- Which cancer has the largest disease burden (DALYs) in the UK?
-
 WITH burden_rate AS (
 		SELECT country
 			,code
@@ -1175,7 +1166,9 @@ ORDER BY code
 	,year
 	,burden DESC;
 
--- Creating Views to store data for visualisation
+-- CREATING VIEWS FOR DATA VIZ
+
+-- CANCER MAP
 
 -- Death Count
 CREATE VIEW CancerDeathRankingView AS
@@ -1416,8 +1409,168 @@ FROM (
     FROM burden_rate
 ) Ranked;
 
--- Viewing Views
+-- CANCER OVER TIME DASHBOARD
 
+-- Death Count
+CREATE VIEW CancerDeathsWorldView AS
+WITH no_null_TotalDeaths AS (
+    SELECT *
+    FROM TotalDeaths
+    WHERE code IS NOT NULL
+)
+
+SELECT 
+    year,
+    SUM(liver_cancer_deaths) AS sum_liver_cancer_deaths,
+    SUM(kidney_cancer_deaths) AS sum_kidney_cancer_deaths,
+    SUM(lip_oral_cavity_cancer_deaths) AS sum_lip_oral_cavity_cancer_deaths,
+    SUM(lung_cancer_deaths) AS sum_lung_cancer_deaths,
+    SUM(larynx_cancer_deaths) AS sum_larynx_cancer_deaths,
+    SUM(gallbladder_biliary_tract_cancer_deaths) AS sum_gallbladder_biliary_tract_cancer_deaths,
+    SUM(malignant_skin_melanoma_deaths) AS sum_malignant_skin_melanoma_deaths,
+    SUM(leukemia_deaths) AS sum_leukemia_deaths,
+    SUM(hodgkin_lymphoma_deaths) AS sum_hodgkin_lymphoma_deaths,
+    SUM(multiple_myeloma_deaths) AS sum_multiple_myeloma_deaths,
+    SUM(other_neoplasms_deaths) AS sum_other_neoplasms_deaths,
+    SUM(breast_cancer_deaths) AS sum_breast_cancer_deaths,
+    SUM(prostate_cancer_deaths) AS sum_prostate_cancer_deaths,
+    SUM(thyroid_cancer_deaths) AS sum_thyroid_cancer_deaths,
+    SUM(stomach_cancer_deaths) AS sum_stomach_cancer_deaths,
+    SUM(bladder_cancer_deaths) AS sum_bladder_cancer_deaths,
+    SUM(uterine_cancer_deaths) AS sum_uterine_cancer_deaths,
+    SUM(ovarian_cancer_deaths) AS sum_ovarian_cancer_deaths,
+    SUM(cervical_cancer_deaths) AS sum_cervical_cancer_deaths,
+    SUM(brain_cns_cancer_deaths) AS sum_brain_cns_cancer_deaths,
+    SUM(non_hodgkin_lymphoma_deaths) AS sum_non_hodgkin_lymphoma_deaths,
+    SUM(pancreatic_cancer_deaths) AS sum_pancreatic_cancer_deaths,
+    SUM(esophageal_cancer_deaths) AS sum_esophageal_cancer_deaths,
+    SUM(testicular_cancer_deaths) AS sum_testicular_cancer_deaths,
+    SUM(nasopharynx_cancer_deaths) AS sum_nasopharynx_cancer_deaths,
+    SUM(other_pharynx_cancer_deaths) AS sum_other_pharynx_cancer_deaths,
+    SUM(colon_rectum_cancer_deaths) AS sum_colon_rectum_cancer_deaths,
+    SUM(non_melanoma_skin_cancer_deaths) AS sum_non_melanoma_skin_cancer_deaths,
+    SUM(mesothelioma_deaths) AS sum_mesothelioma_deaths
+FROM no_null_TotalDeaths
+GROUP BY year;
+
+-- Incidence Rate
+CREATE VIEW CancerIncidenceWorldView AS
+WITH no_null_CancerPopulation AS (
+    SELECT *
+    FROM CancerPopulation
+    WHERE code IS NOT NULL
+)
+
+SELECT 
+    year,
+    AVG(liver_cancer_prevalence) AS avg_liver_cancer,
+    AVG(kidney_cancer_prevalence) AS avg_kidney_cancer,
+    AVG(larynx_cancer_prevalence) AS avg_larynx_cancer,
+    AVG(breast_cancer_prevalence) AS avg_breast_cancer,
+    AVG(thyroid_cancer_prevalence) AS avg_thyroid_cancer,
+    AVG(bladder_cancer_prevalence) AS avg_bladder_cancer,
+    AVG(uterine_cancer_prevalence) AS avg_uterine_cancer,
+    AVG(ovarian_cancer_prevalence) AS avg_ovarian_cancer,
+    AVG(stomach_cancer_prevalence) AS avg_stomach_cancer,
+    AVG(prostate_cancer_prevalence) AS avg_prostate_cancer,
+    AVG(cervical_cancer_prevalence) AS avg_cervical_cancer,
+    AVG(testicular_cancer_prevalence) AS avg_testicular_cancer,
+    AVG(pancreatic_cancer_prevalence) AS avg_pancreatic_cancer,
+    AVG(esophageal_cancer_prevalence) AS avg_esophageal_cancer,
+    AVG(nasopharynx_cancer_prevalence) AS avg_nasopharynx_cancer,
+    AVG(colon_rectum_cancer_prevalence) AS avg_colon_rectum_cancer,
+    AVG(non_melanoma_skin_cancer_prevalence) AS avg_non_melanoma_skin_cancer,
+    AVG(lip_oral_cavity_cancer_prevalence) AS avg_lip_oral_cavity_cancer,
+    AVG(brain_nervous_system_cancer_prevalence) AS avg_brain_nervous_system_cancer,
+    AVG(lung_cancer_prevalence) AS avg_lung_cancer,
+    AVG(gallbladder_biliary_tract_cancer_prevalence) AS avg_gallbladder_biliary_tract_cancer,
+    AVG(neoplasms_prevalence) AS avg_neoplasms
+FROM no_null_CancerPopulation
+GROUP BY year;
+
+-- Mortality Rate / 100,000
+CREATE VIEW CancerMortalityWorldView AS
+WITH no_null_MortalityRate AS (
+    SELECT *
+    FROM CancerRate
+    WHERE code IS NOT NULL
+)
+
+SELECT 
+    year,
+    AVG((liver_cancer_deaths*1.0/population*1.0)*100000) AS mortality_liver_cancer,
+    AVG((kidney_cancer_deaths*1.0/population*1.0)*100000) AS mortality_kidney_cancer,
+    AVG((lip_oral_cavity_cancer_deaths*1.0/population*1.0)*100000) AS mortality_lip_oral_cavity_cancer,
+    AVG((lung_cancer_deaths*1.0/population*1.0)*100000) AS mortality_lung_cancer,
+    AVG((larynx_cancer_deaths*1.0/population*1.0)*100000) AS mortality_larynx_cancer,
+    AVG((gallbladder_biliary_tract_cancer_deaths*1.0/population*1.0)*100000) AS mortality_gallbladder_biliary_tract_cancer,
+    AVG((malignant_skin_melanoma_deaths*1.0/population*1.0)*100000) AS mortality_malignant_skin_melanoma,
+    AVG((leukemia_deaths*1.0/population*1.0)*100000) AS mortality_leukemia,
+    AVG((hodgkin_lymphoma_deaths*1.0/population*1.0)*100000) AS mortality_hodgkin_lymphoma,
+    AVG((multiple_myeloma_deaths*1.0/population*1.0)*100000) AS mortality_multiple_myeloma,
+    AVG((other_neoplasms_deaths*1.0/population*1.0)*100000) AS mortality_other_neoplasms,
+    AVG((breast_cancer_deaths*1.0/population*1.0)*100000) AS mortality_breast_cancer,
+    AVG((prostate_cancer_deaths*1.0/population*1.0)*100000) AS mortality_prostate_cancer,
+    AVG((thyroid_cancer_deaths*1.0/population*1.0)*100000) AS mortality_thyroid_cancer,
+    AVG((stomach_cancer_deaths*1.0/population*1.0)*100000) AS mortality_stomach_cancer,
+    AVG((bladder_cancer_deaths*1.0/population*1.0)*100000) AS mortality_bladder_cancer,
+    AVG((uterine_cancer_deaths*1.0/population*1.0)*100000) AS mortality_uterine_cancer,
+    AVG((ovarian_cancer_deaths*1.0/population*1.0)*100000) AS mortality_ovarian_cancer,
+    AVG((cervical_cancer_deaths*1.0/population*1.0)*100000) AS mortality_cervical_cancer,
+    AVG((brain_cns_cancer_deaths*1.0/population*1.0)*100000) AS mortality_brain_cns_cancer,
+    AVG((non_hodgkin_lymphoma_deaths*1.0/population*1.0)*100000) AS mortality_non_hodgkin_lymphoma,
+    AVG((pancreatic_cancer_deaths*1.0/population*1.0)*100000) AS mortality_pancreatic_cancer,
+    AVG((esophageal_cancer_deaths*1.0/population*1.0)*100000) AS mortality_esophageal_cancer,
+    AVG((testicular_cancer_deaths*1.0/population*1.0)*100000) AS mortality_testicular_cancer,
+    AVG((nasopharynx_cancer_deaths*1.0/population*1.0)*100000) AS mortality_nasopharynx_cancer,
+    AVG((other_pharynx_cancer_deaths*1.0/population*1.0)*100000) AS mortality_other_pharynx_cancer,
+    AVG((colon_rectum_cancer_deaths*1.0/population*1.0)*100000) AS mortality_colon_rectum_cancer,
+    AVG((non_melanoma_skin_cancer_deaths*1.0/population*1.0)*100000) AS mortality_non_melanoma_skin_cancer,
+    AVG((mesothelioma_deaths*1.0/population*1.0)*100000) AS mortality_mesothelioma
+FROM no_null_MortalityRate
+GROUP BY year;
+
+-- Burden Rate / DALYs
+CREATE VIEW CancerBurdenWorldView AS
+WITH no_null_DiseaseBurden AS (
+    SELECT *
+    FROM DiseaseBurden
+    WHERE code IS NOT NULL
+)
+
+SELECT 
+    year,
+	AVG(other_pharynx_cancer_dalys) AS avg_other_pharynx_cancer_dalys,
+    AVG(liver_cancer_dalys) AS avg_liver_cancer_dalys,
+    AVG(breast_cancer_dalys) AS avg_breast_cancer_dalys,
+    AVG(lung_cancer_dalys) AS avg_lung_cancer_dalys,
+    AVG(gallbladder_cancer_dalys) AS avg_gallbladder_cancer_dalys,
+    AVG(kidney_cancer_dalys) AS avg_kidney_cancer_dalys,
+    AVG(larynx_cancer_dalys) AS avg_larynx_cancer_dalys,
+    AVG(stomach_cancer_dalys) AS avg_stomach_cancer_dalys,
+    AVG(thyroid_cancer_dalys) AS avg_thyroid_cancer_dalys,
+    AVG(uterine_cancer_dalys) AS avg_uterine_cancer_dalys,
+    AVG(ovarian_cancer_dalys) AS avg_ovarian_cancer_dalys,
+    AVG(bladder_cancer_dalys) AS avg_bladder_cancer_dalys,
+    AVG(cervical_cancer_dalys) AS avg_cervical_cancer_dalys,
+    AVG(prostate_cancer_dalys) AS avg_prostate_cancer_dalys,
+    AVG(brain_cns_cancer_dalys) AS avg_brain_cns_cancer_dalys,
+    AVG(pancreatic_cancer_dalys) AS avg_pancreatic_cancer_dalys,
+    AVG(testicular_cancer_dalys) AS avg_testicular_cancer_dalys,
+    AVG(esophageal_cancer_dalys) AS avg_esophageal_cancer_dalys,
+    AVG(nasopharynx_cancer_dalys) AS avg_nasopharynx_cancer_dalys,
+    AVG(colon_rectum_cancer_dalys) AS avg_colon_rectum_cancer_dalys,
+    AVG(non_melanoma_skin_cancer_dalys) AS avg_non_melanoma_skin_cancer_dalys,
+    AVG(lip_oral_cavity_cancer_dalys) AS avg_lip_oral_cavity_cancer_dalys,
+    AVG(malignant_skin_melanoma_dalys) AS avg_malignant_skin_melanoma_dalys,
+    AVG(other_malignant_neoplasms_dalys) AS avg_other_malignant_neoplasms_dalys,
+    AVG(mesothelioma_dalys) AS avg_mesothelioma_dalys,
+    AVG(hodgkin_lymphoma_dalys) AS avg_hodgkin_lymphoma_dalys,
+    AVG(non_hodgkin_lymphoma_dalys) AS avg_non_hodgkin_lymphoma_dalys
+FROM no_null_DiseaseBurden
+GROUP BY year;
+
+-- VIEWING VIEWS
 SELECT *
 FROM CancerDeathRankingView
 ORDER BY code, year, rn, death_count DESC;
@@ -1433,3 +1586,22 @@ ORDER BY code, year, rn, mortality_rate DESC;
 SELECT *
 FROM CancerBurdenRateView
 ORDER BY code, year, rn, burden DESC;
+
+SELECT *
+FROM CancerDeathsWorldView
+ORDER BY year;
+
+SELECT *
+FROM CancerIncidenceWorldView
+ORDER BY year;
+
+SELECT *
+FROM CancerMortalityWorldView
+ORDER BY year;
+
+SELECT *
+FROM CancerBurdenWorldView
+ORDER BY year;
+
+
+
